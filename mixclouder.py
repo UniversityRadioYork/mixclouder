@@ -37,10 +37,13 @@ def myradio_api_request(url, payload={}):
         sys.exit()
 
 def get_epoch(timestamp):
-  return int((datetime.datetime.strptime(timestamp, '%d/%m/%Y %H:%M:%S')-datetime.datetime(1970,1,1)).total_seconds())
+  return int((datetime.datetime.strptime(timestamp+' UTC', '%d/%m/%Y %H:%M:%S %Z')-datetime.datetime(1970,1,1)).total_seconds())
 
 def loggerng_api_request(action, timeslot):
   start_time = get_epoch(timeslot['start_time']+':00')
+  # Timeslots return start time relevant to local time at that point. If it was in dst, subtract an hour
+  if time.localtime(start_time).tm_isdst:
+    start_time -= 3600
   end_time = start_time + get_epoch('01/01/1970 '+timeslot['duration'])
   return requests.get(config.get("mixclouder", "loggerng_url") + action, params={'user': config.get("mixclouder", "loggerng_memberid"), 'start': start_time, 'end': end_time, 'format': 'mp3', 'title': timeslot['id']})
 
@@ -139,6 +142,9 @@ for timeslot in timeslots:
     if r.status_code != 200:
       info = r.json() if callable (r.json) else r.json
       logging.error(info['error']['message'])
+      # Put the log back into the queue
+      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'})
+      # Wait before carrying on if it's an API limit
       if info['error']['retry_after']:
         logging.error('Waiting '+str(info['error']['retry_after'])+' seconds before continuing.')
         time.sleep(info['error']['retry_after'])
