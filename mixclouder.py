@@ -66,9 +66,11 @@ config.read(args.config_file)
 # Logs are available for the last 65 days. We'll check through all of those.
 log_start = int(time.mktime((datetime.datetime.now() + datetime.timedelta(-65)).timetuple()))
 timeslots = []
-while log_start < time.time():
+while True:
   ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
   log_start = get_epoch(ts['start_time']+':01')
+  if log_start > time.time():
+    break
   #Check if this show is opted in to logging and hasn't already been done
   if ts['mixcloud_status'] == 'Requested':
     # Was something other than jukebox on air at the time? (well, 2.5m in)
