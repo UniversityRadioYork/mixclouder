@@ -77,19 +77,20 @@ while log_start < time.time():
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Queued'})
     else:
       logging.warn("Timeslot "+ts['id']+" was not on air!")
-      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped'})
+      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'})
 
 logging.info("Found %s shows pending upload.", len(timeslots))
 
 for timeslot in timeslots:
   #Skip ones that already have some kind of status
   if timeslot['mixcloud_status'] != 'Requested':
-    logging.info("Skipping "+str(132713)+" as it does not need mixcloudifying.")
+    logging.info("Skipping "+str(timeslot['id'])+" as it does not need mixcloudifying.")
     continue
 
   tracklist = sorted(myradio_api_request('TracklistItem/getTracklistForTimeslot', {'timeslotid': timeslot['id']}), key=lambda k: k['starttime'])
   if len(tracklist) < 8:
-    logging.warn("Timeslot does not have at least 8 tracks in its tracklist data")
+    logging.warn("Timeslot "+timeslot['title']+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 8 tracks in its tracklist data")
+    myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'})
   else:
     #Great, now let's make a request for the log file
     r = loggerng_api_request("make", timeslot)
@@ -137,7 +138,9 @@ for timeslot in timeslots:
     
     logging.info("Starting upload of %s to Mixcloud", data['name'])
 
-    # Sort the data dict so it's in a logical order
+#    print(data)
+#    print(files)
+
     r = requests.post('https://api.mixcloud.com/upload/?access_token='+config.get("mixclouder", "mixcloud_client_oauth"), data=data, files=files)
     if r.status_code != 200:
       info = r.json() if callable (r.json) else r.json
@@ -145,7 +148,7 @@ for timeslot in timeslots:
       # Put the log back into the queue
       myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'})
       # Wait before carrying on if it's an API limit
-      if info['error']['retry_after']:
+      if 'retry_after' in info['error']:
         logging.error('Waiting '+str(info['error']['retry_after'])+' seconds before continuing.')
         time.sleep(info['error']['retry_after'])
     else:
