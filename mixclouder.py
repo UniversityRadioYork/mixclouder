@@ -89,7 +89,7 @@ for timeslot in timeslots:
 
   tracklist = sorted(myradio_api_request('TracklistItem/getTracklistForTimeslot', {'timeslotid': timeslot['id']}), key=lambda k: k['starttime'])
   if len(tracklist) < 8:
-    logging.warn("Timeslot "+timeslot['title']+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 8 tracks in its tracklist data")
+    logging.warn("Timeslot "+timeslot['title']+' '+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 8 tracks in its tracklist data")
     myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'})
   else:
     #Great, now let's make a request for the log file
