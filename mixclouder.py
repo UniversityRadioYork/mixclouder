@@ -1,3 +1,4 @@
+#Python 2 (was 3, but PIL and was designed to run on crusty debian)
 import requests
 import json
 import argparse
@@ -8,6 +9,7 @@ import sys
 import subprocess
 import time
 import re
+import Image
 
 def write_demo_config(f):
     config = configparser.RawConfigParser()
@@ -78,7 +80,7 @@ while True:
       timeslots.append(ts)
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Queued'})
     else:
-      logging.warn("Timeslot "+ts['id']+" was not on air!")
+      logging.warn("Timeslot "+str(ts['id'])+" was not on air!")
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'})
 
 logging.info("Found %s shows pending upload.", len(timeslots))
@@ -136,7 +138,36 @@ for timeslot in timeslots:
     fp = open(tmpname, "wb")
     fp.write(r.content)
     fp.close();
-    files['picture'] = open(tmpname, "rb")
+
+    #Convert it to a square ourselves - otherwise mixcloud get special
+    im = Image.open(tmpname)
+
+    # You don't want to know what happens to alpha channels
+    if im.mode == "RGBA":
+      pixel_data = im.load()
+      # If the image has an alpha channel, convert it to white
+      # Otherwise we'll get weird pixels
+      for y in xrange(im.size[1]): # For each row ...
+        for x in xrange(im.size[0]): # Iterate through each column ...
+          # Check if it's opaque
+          if pixel_data[x, y][3] < 255:
+            # Replace the pixel data with the colour white
+            pixel_data[x, y] = (255, 255, 255, 255)
+
+    xsize, ysize = im.size
+    outsize = x_size if xsize > ysize else ysize
+    new = Image.new("RGB", (outsize, outsize), color=(255, 255, 255))
+
+    x1 = int(0.5*(outsize-xsize))
+    y1 = int(0.5*(outsize-ysize))
+    x2 = x1 + xsize
+    y2 = y1 + ysize
+    new.paste(im.crop((0,0,xsize,ysize)), (x1, y1, x2, y2))
+    new.save(tmpname+".jpg", "JPEG")
+
+    del im, new
+
+    files['picture'] = open(tmpname+".jpg", "rb")
     
     logging.info("Starting upload of %s to Mixcloud", data['name'])
 
