@@ -71,7 +71,7 @@ timeslots = []
 while True:
   ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
   log_start = get_epoch(ts['start_time']+':01')
-  if log_start + ts['duration'] > time.time():
+  if log_start + get_epoch('01/01/1970 '+timeslot['duration']) > time.time():
     break
   #Check if this show is opted in to logging and hasn't already been done
   if ts['mixcloud_status'] == 'Requested':
