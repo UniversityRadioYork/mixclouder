@@ -71,7 +71,7 @@ timeslots = []
 while True:
   ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
   log_start = get_epoch(ts['start_time']+':01')
-  if log_start > time.time():
+  if log_start + ts['duration'] > time.time():
     break
   #Check if this show is opted in to logging and hasn't already been done
   if ts['mixcloud_status'] == 'Requested':
@@ -108,7 +108,7 @@ for timeslot in timeslots:
     r = r.json() if callable (r.json) else r.json
     file = config.get("mixclouder", "loggerng_logdir") + '/' + r['filename_disk']
     # Okay, time to build request data
-    data = {"name": timeslot['title']+' Season '+str(timeslot['season_num'])+' Episode '+str(timeslot['timeslot_num']), "description": re.sub('<[^<]+?>', '', timeslot['description']), 'sections-0-start_time': 0, 'sections-0-chapter': 'Top of Hour'}
+    data = {"name": timeslot['title']+' '+time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time']+':00'))), "description": re.sub('<[^<]+?>', '', timeslot['description']), 'sections-0-start_time': 0, 'sections-0-chapter': 'Top of Hour'}
     
     # Add the tags, if they are a thing
     for i in range(min(5, len(timeslot['tags']))):
