@@ -42,7 +42,7 @@ def get_epoch(timestamp):
   return int((datetime.datetime.strptime(timestamp+' UTC', '%d/%m/%Y %H:%M:%S %Z')-datetime.datetime(1970,1,1)).total_seconds())
 
 def loggerng_api_request(action, timeslot):
-  start_time = get_epoch(timeslot['start_time']+':00')
+  start_time = get_epoch(timeslot['start_time']+':00')+120
   # Timeslots return start time relevant to local time at that point. If it was in dst, subtract an hour
   if time.localtime(start_time).tm_isdst:
     start_time -= 3600
@@ -175,8 +175,8 @@ for timeslot in timeslots:
 #    print(files)
 
     r = requests.post('https://api.mixcloud.com/upload/?access_token='+config.get("mixclouder", "mixcloud_client_oauth"), data=data, files=files)
+    info = r.json() if callable (r.json) else r.json
     if r.status_code != 200:
-      info = r.json() if callable (r.json) else r.json
       logging.error(info['error']['message'])
       # Put the log back into the queue
       myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'})
@@ -186,6 +186,6 @@ for timeslot in timeslots:
         time.sleep(info['error']['retry_after'])
     else:
       logging.info('Upload successful!')
-      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Uploaded'})
+      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': info['result']['key']})
     print(r)
     print(r.content)
