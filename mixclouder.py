@@ -37,6 +37,9 @@ def myradio_api_request(url, payload={}):
     elif r['status'] == 401:
         logging.error("Server returned error 401 - No api key provided")
         sys.exit()
+    else:
+        logging.error("Unexpected server response: " + str(r))
+        sys.exit()
 
 def get_epoch(timestamp):
   return int((datetime.datetime.strptime(timestamp+' UTC', '%d/%m/%Y %H:%M:%S %Z')-datetime.datetime(1970,1,1)).total_seconds())
@@ -78,7 +81,7 @@ while True:
     # Was something other than jukebox on air at the time? (well, 2.5m in)
     if myradio_api_request('Selector/getStudioAtTime/', {'time': log_start+150}) != 3:
       timeslots.append(ts)
-      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Queued'})
+      print myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Queued'})
     else:
       logging.warn("Timeslot "+str(ts['id'])+" was not on air!")
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'})
