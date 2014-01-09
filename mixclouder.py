@@ -25,9 +25,16 @@ def write_demo_config(f):
     config.set("mixclouder", "loggerng_logdir", "/mnt/logs")
     config.write(f)
 
-def myradio_api_request(url, payload={}):
+def myradio_api_request(url, payload={}, retry=True):
     payload['api_key'] = config.get("mixclouder", "myradio_api_key")
-    r = requests.get(config.get("mixclouder", "myradio_url") + url, params=payload, verify=False)
+    try:
+        r = requests.get(config.get("mixclouder", "myradio_url") + url, params=payload)
+    except requests.exceptions.SSLError:
+        # We get these transiently. Try again.
+        if retry:
+            myradio_api_request(url, payload, False)
+        else:
+            raise
     r = r.json() if callable (r.json) else r.json
     if r['status'] == 'OK':
         return r['payload']
