@@ -23,6 +23,7 @@ def write_demo_config(f):
     config.set("mixclouder", "loggerng_url", "http://mylogger.mydomain.fm:0000/")
     config.set("mixclouder", "loggerng_memberid", 779)
     config.set("mixclouder", "loggerng_logdir", "/mnt/logs")
+    config.set("mixclouder", "start_time", 0)
     config.write(f)
 
 def myradio_api_request(url, payload={}, retry=True):
@@ -77,6 +78,8 @@ config.read(args.config_file)
 #Todo: Cross reference with mixcloud to ensure somehow isn't already there
 # Logs are available for the last 65 days. We'll check through all of those.
 log_start = int(time.mktime((datetime.datetime.now() + datetime.timedelta(-65)).timetuple()))
+if log_start < config.get("mixclouder", "start_time"):
+  log_start = config.get("mixclouder", "start_time")
 timeslots = []
 while True:
   ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
