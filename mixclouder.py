@@ -88,7 +88,8 @@ while True:
     # Was something other than jukebox on air at the time? (well, 2.5m in)
     if myradio_api_request('Selector/getStudioAtTime/', {'time': log_start+150}) != 3:
       timeslots.append(ts)
-      print myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Queued'})
+      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', 
+{'string_key': 'upload_state', 'value': 'Queued'})
     else:
       logging.warn("Timeslot "+str(ts['id'])+" was not on air!")
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'})
@@ -197,5 +198,4 @@ for timeslot in timeslots:
     else:
       logging.info('Upload successful!')
       myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': info['result']['key']})
-    print(r)
     print(r.content)
