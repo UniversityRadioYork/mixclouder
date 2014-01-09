@@ -33,6 +33,7 @@ def myradio_api_request(url, payload={}, retry=True):
         # We get these transiently. Try again.
         if retry:
             myradio_api_request(url, payload, False)
+            return
         else:
             raise
     r = r.json() if callable (r.json) else r.json
