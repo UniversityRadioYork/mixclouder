@@ -32,8 +32,7 @@ def myradio_api_request(url, payload={}, retry=True):
     except requests.exceptions.SSLError:
         # We get these transiently. Try again.
         if retry:
-            myradio_api_request(url, payload, False)
-            return
+            return myradio_api_request(url, payload, False)
         else:
             raise
     r = r.json() if callable (r.json) else r.json
