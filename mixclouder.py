@@ -29,7 +29,8 @@ def write_demo_config(f):
 def myradio_api_request(url, payload={}, retry=True):
     payload['api_key'] = config.get("mixclouder", "myradio_api_key")
     try:
-        r = requests.get(config.get("mixclouder", "myradio_url") + url, params=payload)
+        r = requests.get(config.get("mixclouder", "myradio_url") + url, 
+params=payload, verify=False) # Don't verify as a hack to get it working while I sort out the ssl cert
     except requests.exceptions.SSLError:
         # We get these transiently. Try again.
         if retry:
@@ -46,7 +47,7 @@ def myradio_api_request(url, payload={}, retry=True):
         logging.error("Server returned error 401 - No api key provided")
         sys.exit()
     else:
-        logging.error("Unexpected server response: " + str(r))
+        logging.error("Unexpected server response: " + str(r) + " " + str(url) + " " + str(payload))
         sys.exit()
 
 def get_epoch(timestamp):
@@ -76,14 +77,19 @@ config = configparser.RawConfigParser()
 config.read(args.config_file)
 
 #Todo: Cross reference with mixcloud to ensure somehow isn't already there
-# Logs are available for the last 65 days. We'll check through all of those.
-log_start = int(time.mktime((datetime.datetime.now() + datetime.timedelta(-65)).timetuple()))
-if log_start < config.get("mixclouder", "start_time"):
-  log_start = config.get("mixclouder", "start_time")
+# Logs are available for the last 1414141414141414141414141414 all of those.
+log_start = int(time.mktime((datetime.datetime.now() + datetime.timedelta(-14)).timetuple()))
+if time.localtime(log_start).tm_isdst:
+  log_start -= 3600
 timeslots = []
 while True:
+  logging.info("Start request" + str(log_start))
   ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
   log_start = get_epoch(ts['start_time']+':01')
+  if time.localtime(log_start).tm_isdst:
+    log_start -= 3600
+  logging.info("Updated Start request" + str(log_start))
+  logging.info(ts['start_time'])
   if log_start + get_epoch('01/01/1970 '+ts['duration']) > time.time():
     break
   #Check if this show is opted in to logging and hasn't already been done
@@ -106,8 +112,8 @@ for timeslot in timeslots:
     continue
 
   tracklist = sorted(myradio_api_request('TracklistItem/getTracklistForTimeslot', {'timeslotid': timeslot['id']}), key=lambda k: k['starttime'])
-  if len(tracklist) < 8:
-    logging.warn("Timeslot "+timeslot['title']+' '+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 8 tracks in its tracklist data")
+  if len(tracklist) < 1:
+    logging.warn("Timeslot "+timeslot['title']+' '+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 1 track in its tracklist data")
     myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'})
   else:
     #Great, now let's make a request for the log file
