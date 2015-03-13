@@ -26,12 +26,12 @@ def write_demo_config(f):
     config.set("mixclouder", "start_time", 0)
     config.write(f)
 
-def myradio_api_request(url, payload={}, retry=True, request="GET"):
+def myradio_api_request(url, payload={}, retry=True, method="GET"):
     payload['api_key'] = config.get("mixclouder", "myradio_api_key")
     try:
-        if request == "GET":
+        if method == "GET":
        	    r = requests.get(config.get("mixclouder", "myradio_url") + url, 
-        elif request == "POST":
+        elif method == "POST":
             r = requests.post(config.get("mixclouder", "myradio_url") + url, 
 params=payload, verify=False) # Don't verify as a hack to get it working while I sort out the ssl cert
     except requests.exceptions.SSLError:
