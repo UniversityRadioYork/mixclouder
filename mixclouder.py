@@ -100,10 +100,10 @@ while True:
     if myradio_api_request('Selector/getStudioAtTime/', {'time': log_start+150}) != 3:
       timeslots.append(ts)
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', 
-{'string_key': 'upload_state', 'value': 'Queued'}, "POST")
+{'string_key': 'upload_state', 'value': 'Queued'}, method = "POST")
     else:
       logging.warn("Timeslot "+str(ts['id'])+" was not on air!")
-      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'}, "POST")
+      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'}, method = "POST")
 
 logging.info("Found %s shows pending upload.", len(timeslots))
 
@@ -116,7 +116,7 @@ for timeslot in timeslots:
   tracklist = sorted(myradio_api_request('TracklistItem/getTracklistForTimeslot', {'timeslotid': timeslot['id']}), key=lambda k: k['starttime'])
   if len(tracklist) < 1:
     logging.warn("Timeslot "+timeslot['title']+' '+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 1 track in its tracklist data")
-    myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'}, "POST")
+    myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'}, method = "POST")
   else:
     #Great, now let's make a request for the log file
     r = loggerng_api_request("make", timeslot)
@@ -201,12 +201,12 @@ for timeslot in timeslots:
     if r.status_code != 200:
       logging.error(info['error']['message'])
       # Put the log back into the queue
-      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, "POST")
+      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, method = "POST")
       # Wait before carrying on if it's an API limit
       if 'retry_after' in info['error']:
         logging.error('Waiting '+str(info['error']['retry_after'])+' seconds before continuing.')
         time.sleep(info['error']['retry_after'])
     else:
       logging.info('Upload successful!')
-      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': info['result']['key']}, "POST")
+      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': info['result']['key']}, method = "POST")
     print(r.content)
