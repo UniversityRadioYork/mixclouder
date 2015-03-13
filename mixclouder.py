@@ -26,10 +26,13 @@ def write_demo_config(f):
     config.set("mixclouder", "start_time", 0)
     config.write(f)
 
-def myradio_api_request(url, payload={}, retry=True):
+def myradio_api_request(url, payload={}, retry=True, request="GET"):
     payload['api_key'] = config.get("mixclouder", "myradio_api_key")
     try:
-        r = requests.get(config.get("mixclouder", "myradio_url") + url, 
+        if request == "GET":
+       	    r = requests.get(config.get("mixclouder", "myradio_url") + url, 
+        elif request == "POST":
+            r = requests.post(config.get("mixclouder", "myradio_url") + url, 
 params=payload, verify=False) # Don't verify as a hack to get it working while I sort out the ssl cert
     except requests.exceptions.SSLError:
         # We get these transiently. Try again.
@@ -77,7 +80,7 @@ config = configparser.RawConfigParser()
 config.read(args.config_file)
 
 #Todo: Cross reference with mixcloud to ensure somehow isn't already there
-# Logs are available for the last 1414141414141414141414141414 all of those.
+# Logs are available for the last 14 all of those.
 log_start = int(time.mktime((datetime.datetime.now() + datetime.timedelta(-14)).timetuple()))
 if time.localtime(log_start).tm_isdst:
   log_start -= 3600
@@ -98,10 +101,10 @@ while True:
     if myradio_api_request('Selector/getStudioAtTime/', {'time': log_start+150}) != 3:
       timeslots.append(ts)
       myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', 
-{'string_key': 'upload_state', 'value': 'Queued'})
+{'string_key': 'upload_state', 'value': 'Queued'}, "POST")
     else:
       logging.warn("Timeslot "+str(ts['id'])+" was not on air!")
-      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'})
+      myradio_api_request('Timeslot/'+str(ts['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Off Air'}, "POST")
 
 logging.info("Found %s shows pending upload.", len(timeslots))
 
@@ -114,7 +117,7 @@ for timeslot in timeslots:
   tracklist = sorted(myradio_api_request('TracklistItem/getTracklistForTimeslot', {'timeslotid': timeslot['id']}), key=lambda k: k['starttime'])
   if len(tracklist) < 1:
     logging.warn("Timeslot "+timeslot['title']+' '+str(timeslot['season_num'])+'x'+str(timeslot['timeslot_num'])+" does not have at least 1 track in its tracklist data")
-    myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'})
+    myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'}, "POST")
   else:
     #Great, now let's make a request for the log file
     r = loggerng_api_request("make", timeslot)
@@ -199,12 +202,12 @@ for timeslot in timeslots:
     if r.status_code != 200:
       logging.error(info['error']['message'])
       # Put the log back into the queue
-      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'})
+      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, "POST")
       # Wait before carrying on if it's an API limit
       if 'retry_after' in info['error']:
         logging.error('Waiting '+str(info['error']['retry_after'])+' seconds before continuing.')
         time.sleep(info['error']['retry_after'])
     else:
       logging.info('Upload successful!')
-      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': info['result']['key']})
+      myradio_api_request('Timeslot/'+str(timeslot['id'])+'/setMeta/', {'string_key': 'upload_state', 'value': info['result']['key']}, "POST")
     print(r.content)
