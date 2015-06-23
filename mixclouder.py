@@ -87,11 +87,15 @@ timeslots = []
 while True:
   logging.info("Start request" + str(log_start))
   ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
+  #ts returns None if there is no next timeslot (i.e. end of term).
+  if ts is None:
+    break
   log_start = get_epoch(ts['start_time']+':01')
   if time.localtime(log_start).tm_isdst:
     log_start -= 3600
   logging.info("Updated Start request" + str(log_start))
   logging.info(ts['start_time'])
+  logging.info(ts['mixcloud_status'])
   if log_start + get_epoch('01/01/1970 '+ts['duration']) > time.time():
     break
   #Check if this show is opted in to logging and hasn't already been done
@@ -108,7 +112,7 @@ while True:
 logging.info("Found %s shows pending upload.", len(timeslots))
 
 for timeslot in timeslots:
-  #Skip ones that already have some kind of status
+  #Skip ones that already have some kind of status, except queued
   if timeslot['mixcloud_status'] != 'Requested':
     logging.info("Skipping "+str(timeslot['id'])+" as it does not need mixcloudifying.")
     continue
