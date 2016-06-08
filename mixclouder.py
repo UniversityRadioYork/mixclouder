@@ -10,6 +10,7 @@ import subprocess
 import time
 import re
 import Image
+from HTMLParser import HTMLParser
 
 def write_demo_config(f):
     config = configparser.RawConfigParser()
@@ -66,6 +67,8 @@ def loggerng_api_request(action, timeslot):
 def cleanse_description(id, desc):
   # remove html tags
   desc = re.sub('<[^<]+?>', '', desc)
+  # HTML unescape
+  desc = HTMLParser().unescape(desc)
   # limit the length due to mixcloud api restrictions
   if len(desc) > 1000:
     desc = desc[:1000]
