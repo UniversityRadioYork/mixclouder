@@ -10,6 +10,7 @@ import subprocess
 import time
 import re
 import Image
+from HTMLParser import HTMLParser
 
 def write_demo_config(f):
     config = configparser.RawConfigParser()
@@ -64,6 +65,8 @@ def loggerng_api_request(action, timeslot):
   return requests.get(config.get("mixclouder", "loggerng_url") + action, params={'user': config.get("mixclouder", "loggerng_memberid"), 'start': start_time, 'end': end_time, 'format': 'mp3', 'title': timeslot['timeslot_id']})
 
 def cleanse_description(id, desc):
+  # HTML unescape
+  desc = HTMLParser().unescape(desc)
   # remove html tags
   desc = re.sub('<[^<]+?>', '', desc)
   # limit the length due to mixcloud api restrictions
