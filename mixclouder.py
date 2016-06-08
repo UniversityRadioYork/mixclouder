@@ -10,6 +10,7 @@ import subprocess
 import time
 import re
 import Image
+from HTMLParser import HTMLParser
 
 def write_demo_config(f):
     config = configparser.RawConfigParser()
@@ -62,6 +63,18 @@ def loggerng_api_request(action, timeslot):
     start_time -= 3600
   end_time = start_time + get_epoch('01/01/1970 '+timeslot['duration'])
   return requests.get(config.get("mixclouder", "loggerng_url") + action, params={'user': config.get("mixclouder", "loggerng_memberid"), 'start': start_time, 'end': end_time, 'format': 'mp3', 'title': timeslot['timeslot_id']})
+
+def cleanse_description(id, desc):
+  # remove html tags
+  desc = re.sub('<[^<]+?>', '', desc)
+  # HTML unescape
+  desc = HTMLParser().unescape(desc)
+  # limit the length due to mixcloud api restrictions
+  if len(desc) > 1000:
+    desc = desc[:1000]
+    # just log a warning so we can manually change if need be
+    logging.warn("Timeslot %s description was too long and was trimmed", id)
+  return desc
 
 argparser = argparse.ArgumentParser(description="Takes recent shows and publishes them to Mixcloud")
 argparser.add_argument('-c', '--config-file', required=True)
@@ -134,7 +147,12 @@ for timeslot in timeslots:
     r = r.json() if callable (r.json) else r.json
     file = config.get("mixclouder", "loggerng_logdir") + '/' + r['filename_disk']
     # Okay, time to build request data
-    data = {"name": timeslot['title']+' '+time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time']+':00'))), "description": re.sub('<[^<]+?>', '', timeslot['description']), 'sections-0-start_time': 0, 'sections-0-chapter': 'Top of Hour'}
+    data = {
+        "name": timeslot['title'] + ' ' + time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time'] + ':00'))),
+        "description": cleanse_description(timeslot['timeslot_id'], timeslot['description']),
+        'sections-0-start_time': 0,
+        'sections-0-chapter': 'Top of Hour'
+    }
     
     # Add the tags, if they are a thing
     for i in range(min(5, len(timeslot['tags']))):
