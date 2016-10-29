@@ -25,6 +25,7 @@ def write_demo_config(f):
     config.set("mixclouder", "loggerng_memberid", 779)
     config.set("mixclouder", "loggerng_logdir", "/mnt/logs")
     config.set("mixclouder", "start_time", 0)
+    config.set("mixclouder", "news_length", 120) #news length offset (integer secs)
     config.write(f)
 
 def myradio_api_request(url, payload={}, retry=True, method="GET"):
@@ -57,7 +58,7 @@ def get_epoch(timestamp):
   return int((datetime.datetime.strptime(timestamp+' UTC', '%d/%m/%Y %H:%M:%S %Z')-datetime.datetime(1970,1,1)).total_seconds())
 
 def loggerng_api_request(action, timeslot):
-  start_time = get_epoch(timeslot['start_time']+':00')+120
+  start_time = get_epoch(timeslot['start_time']+':00')+(int(config.get("mixclouder", "news_length")))
   # Timeslots return start time relevant to local time at that point. If it was in dst, subtract an hour
   if time.localtime(start_time).tm_isdst:
     start_time -= 3600
@@ -168,7 +169,7 @@ for timeslot in timeslots:
     for i in tracklist:
       data['sections-'+str(sindex)+'-artist'] = i['artist']
       data['sections-'+str(sindex)+'-song'] = i['title']
-      data['sections-'+str(sindex)+'-start_time'] = get_epoch(i['starttime'])-get_epoch(timeslot['start_time']+':00')
+      data['sections-'+str(sindex)+'-start_time'] = get_epoch(i['starttime'])-get_epoch(timeslot['start_time']+':00')-(int(config.get("mixclouder", "news_length")))
       sindex += 1
       music_time += get_epoch('01/01/1970 '+(str(i['length']) if i['length'] else '00:00:00'))
     # Work out that percentage of music I mentioned earlier
