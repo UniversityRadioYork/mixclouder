@@ -9,7 +9,7 @@ import sys
 import subprocess
 import time
 import re
-import Image
+from PIL import Image
 from HTMLParser import HTMLParser
 
 def write_demo_config(f):
