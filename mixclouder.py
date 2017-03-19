@@ -55,14 +55,21 @@ def myradio_api_request(url, payload={}, retry=True, method="GET"):
         sys.exit()
 
 def get_epoch(timestamp):
-  return int((datetime.datetime.strptime(timestamp+' UTC', '%d/%m/%Y %H:%M:%S %Z')-datetime.datetime(1970,1,1)).total_seconds())
+    return int((datetime.datetime.strptime(timestamp+' UTC', '%d/%m/%Y %H:%M:%S %Z')-datetime.datetime(1970,1,1)).total_seconds())
+
+def get_duration(duration):
+    # Can't use strptime in the case that the show is >24 hours
+    # (Yes this does happen occasionally)
+    hours, minutes, seconds = map(int, time1.split(':'))
+    td = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
+    return td.total_seconds()
 
 def loggerng_api_request(action, timeslot):
   start_time = get_epoch(timeslot['start_time']+':00')+(int(config.get("mixclouder", "news_length")))
   # Timeslots return start time relevant to local time at that point. If it was in dst, subtract an hour
   if time.localtime(start_time).tm_isdst:
     start_time -= 3600
-  end_time = start_time + get_epoch('01/01/1970 '+timeslot['duration'])
+  end_time = start_time + get_duration(timeslot['duration'])
   return requests.get(config.get("mixclouder", "loggerng_url") + action, params={'user': config.get("mixclouder", "loggerng_memberid"), 'start': start_time, 'end': end_time, 'format': 'mp3', 'title': timeslot['timeslot_id']})
 
 def cleanse_description(id, desc):
@@ -110,7 +117,7 @@ while True:
   logging.info("Updated Start request" + str(log_start))
   logging.info(ts['start_time'])
   logging.info(ts['mixcloud_status'])
-  if log_start + get_epoch('01/01/1970 '+ts['duration']) > time.time():
+  if log_start + get_duration(ts['duration']) > time.time():
     break
   #Check if this show is opted in to logging and hasn't already been done
   if ts['mixcloud_status'] == 'Requested':
@@ -161,7 +168,7 @@ for timeslot in timeslots:
     
     # For the perecentage_music field, we need to work out how much is speech and how much is... well, something else.
     # Let's start with the length of the show
-    duration = get_epoch('01/01/1970 '+timeslot['duration'])
+    duration = get_duration(timeslot['duration'])
     music_time = 0
     #Section Index
     sindex = 1
@@ -171,7 +178,7 @@ for timeslot in timeslots:
       data['sections-'+str(sindex)+'-song'] = i['title']
       data['sections-'+str(sindex)+'-start_time'] = get_epoch(i['starttime'])-get_epoch(timeslot['start_time']+':00')-(int(config.get("mixclouder", "news_length")))
       sindex += 1
-      music_time += get_epoch('01/01/1970 '+(str(i['length']) if i['length'] else '00:00:00'))
+      music_time += get_duration(str(i['length'])) if i['length'] else 0
     # Work out that percentage of music I mentioned earlier
     data['percentage_music'] = int(music_time/duration*100)
 
