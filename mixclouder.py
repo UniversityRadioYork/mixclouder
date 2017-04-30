@@ -1,16 +1,14 @@
-# Python 2 (was 3, but PIL and was designed to run on crusty debian)
-import requests
-import json
 import argparse
-import logging
-import datetime
 import configparser
-import sys
-import subprocess
-import time
-import re
+import datetime
+import html
+import json
+import logging
 from PIL import Image
-from HTMLParser import HTMLParser
+import re
+import requests
+import sys
+import time
 
 
 def write_demo_config(f):
@@ -88,7 +86,7 @@ def cleanse_description(id, desc):
     # remove html tags
     desc = re.sub('<[^<]+?>', '', desc)
     # HTML unescape
-    desc = HTMLParser().unescape(desc)
+    desc = html.unescape(desc)
     # limit the length due to mixcloud api restrictions
     if len(desc) > 1000:
         desc = desc[:1000]
