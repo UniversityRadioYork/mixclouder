@@ -30,17 +30,10 @@ def write_demo_config(f):
 
 def myradio_api_request(url, payload={}, retry=True, method="GET"):
     payload['api_key'] = config.get("mixclouder", "myradio_api_key")
-    try:
-        if method == "GET":
-            r = requests.get(config.get("mixclouder", "myradio_url") + url, params=payload, verify=False) # Don't verify as a hack to get it working while I sort out the ssl cert
-        elif method == "POST":
-            r = requests.post(config.get("mixclouder", "myradio_url") + url, params=payload, verify=False) # Don't verify as a hack to get it working while I sort out the ssl cert
-    except requests.exceptions.SSLError:
-        # We get these transiently. Try again.
-        if retry:
-            return myradio_api_request(url, payload, False)
-        else:
-            raise
+    if method == "GET":
+        r = requests.get(config.get("mixclouder", "myradio_url") + url, params=payload)
+    elif method == "POST":
+        r = requests.post(config.get("mixclouder", "myradio_url") + url, params=payload)
     r = r.json() if callable (r.json) else r.json
     if r['status'] == 'OK':
         return r['payload']
