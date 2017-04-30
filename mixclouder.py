@@ -37,7 +37,7 @@ def myradio_api_request(url, payload={}, retry=True, method="GET"):
     elif method == "POST":
         req_func = requests.post
     r = req_func(config.get("mixclouder", "myradio_url") + url, params=payload)
-    r = r.json() if callable(r.json) else r.json
+    r = r.json()
     if r['status'] == 'OK':
         return r['payload']
     elif r['status'] == 403:
@@ -182,8 +182,8 @@ for timeslot in timeslots:
         logging.info("Still waiting for log generation (%s)", r.status_code)
         time.sleep(30)
         r = loggerng_api_request("download", timeslot)
-    r = r.json() if callable(r.json) else r.json
-    file = config.get("mixclouder", "loggerng_logdir") + '/' + r['filename_disk']
+    r = r.json()
+    audiofile = config.get("mixclouder", "loggerng_logdir") + '/' + r['filename_disk']
     # Okay, time to build request data
     data = {
         "name": timeslot['title'] + ' ' + time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time'] + ':00'))),
@@ -216,7 +216,7 @@ for timeslot in timeslots:
     data['percentage_music'] = int(music_time/duration*100)
 
     # Now let's open the actual file
-    files = {'mp3': open(file, 'rb')}
+    files = {'mp3': open(audiofile, 'rb')}
     # Don't forget the show photo!
     r = requests.get(config.get("mixclouder", "myradio_image_domain") + timeslot['photo'])
     tmpname = "/tmp/mcphoto_"+str(timeslot['timeslot_id'])
@@ -260,7 +260,7 @@ for timeslot in timeslots:
 #    print(files)
 
     r = requests.post('https://api.mixcloud.com/upload/?access_token='+config.get("mixclouder", "mixcloud_client_oauth"), data=data, files=files)
-    info = r.json() if callable(r.json) else r.json
+    info = r.json()
     if r.status_code != 200:
         logging.error(info['error']['message'])
         # Put the log back into the queue
