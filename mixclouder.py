@@ -60,9 +60,9 @@ def get_epoch(timestamp):
 def get_duration(duration):
     # Can't use strptime in the case that the show is >24 hours
     # (Yes this does happen occasionally)
-    hours, minutes, seconds = map(int, time1.split(':'))
+    hours, minutes, seconds = map(int, duration.split(':'))
     td = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
-    return td.total_seconds()
+    return int(td.total_seconds())
 
 def loggerng_api_request(action, timeslot):
   start_time = get_epoch(timeslot['start_time']+':00')+(int(config.get("mixclouder", "news_length")))
