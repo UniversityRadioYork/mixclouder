@@ -215,8 +215,6 @@ for timeslot in timeslots:
     # Work out that percentage of music I mentioned earlier
     data['percentage_music'] = int(music_time/duration*100)
 
-    # Now let's open the actual file
-    files = {'mp3': open(audiofile, 'rb')}
     # Don't forget the show photo!
     r = requests.get(config.get("mixclouder", "myradio_image_domain") + timeslot['photo'])
     tmpname = "/tmp/mcphoto_"+str(timeslot['timeslot_id'])
@@ -224,23 +222,16 @@ for timeslot in timeslots:
     fp.write(r.content)
     fp.close()
 
+    im = Image.open(tmpname).convert('RGBA')
+
+    # If the image has an alpha channel, convert it to white
+    # Otherwise we'll get weird pixels
+    background = Image.new('RGBA', png.size, (255,255,255))
+    im = Image.alpha_composite(background, im)
+
     # Convert it to a square ourselves - otherwise mixcloud get special
-    im = Image.open(tmpname)
-
-    # You don't want to know what happens to alpha channels
-    if im.mode == "RGBA":
-        pixel_data = im.load()
-        # If the image has an alpha channel, convert it to white
-        # Otherwise we'll get weird pixels
-        for y in xrange(im.size[1]):  # For each row ...
-            for x in xrange(im.size[0]):  # Iterate through each column ...
-                # Check if it's opaque
-                if pixel_data[x, y][3] < 255:
-                    # Replace the pixel data with the colour white
-                    pixel_data[x, y] = (255, 255, 255, 255)
-
     xsize, ysize = im.size
-    outsize = x_size if xsize > ysize else ysize
+    outsize = max(xsize, ysize)
     new = Image.new("RGB", (outsize, outsize), color=(255, 255, 255))
 
     x1 = int(0.5*(outsize-xsize))
@@ -250,14 +241,13 @@ for timeslot in timeslots:
     new.paste(im.crop((0, 0, xsize, ysize)), (x1, y1, x2, y2))
     new.save(tmpname+".jpg", "JPEG")
 
-    del im, new
-
-    files['picture'] = open(tmpname+".jpg", "rb")
+    # Now let's open the actual file
+    files = {
+        'mp3': open(audiofile, 'rb'),
+        'picture': open(tmpname+'.jpg', 'rb')
+    }
 
     logging.info("Starting upload of %s to Mixcloud", data['name'])
-
-#    print(data)
-#    print(files)
 
     r = requests.post('https://api.mixcloud.com/upload/?access_token='+config.get("mixclouder", "mixcloud_client_oauth"), data=data, files=files)
     info = r.json()
