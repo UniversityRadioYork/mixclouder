@@ -28,7 +28,9 @@ def write_demo_config(f):
     config.write(f)
 
 
-def myradio_api_request(url, payload={}, retry=True, method="GET"):
+def myradio_api_request(url, payload=None, retry=True, method="GET"):
+    if payload is None:
+        payload = {}
     payload['api_key'] = config.get("mixclouder", "myradio_api_key")
     if method == "GET":
         req_func = requests.get
