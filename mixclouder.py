@@ -122,7 +122,7 @@ if time.localtime(log_start).tm_isdst:
     log_start -= 3600
 timeslots = []
 while True:
-    logging.info("Start request" + str(log_start))
+    logging.info("Start request %s", log_start)
     ts = myradio_api_request('Timeslot/getNextTimeslot/', {'time': log_start})
     # ts returns None if there is no next timeslot (i.e. end of term).
     if ts is None:
@@ -130,7 +130,7 @@ while True:
     log_start = get_epoch(ts['start_time']+':01')
     if time.localtime(log_start).tm_isdst:
         log_start -= 3600
-    logging.info("Updated Start request" + str(log_start))
+    logging.info("Updated Start request %s", log_start)
     logging.info(ts['start_time'])
     logging.info(ts['mixcloud_status'])
     if log_start + get_duration(ts['duration']) > time.time():
@@ -226,7 +226,7 @@ for timeslot in timeslots:
 
     # If the image has an alpha channel, convert it to white
     # Otherwise we'll get weird pixels
-    background = Image.new('RGBA', png.size, (255,255,255))
+    background = Image.new('RGBA', im.size, (255,255,255))
     im = Image.alpha_composite(background, im)
 
     # Convert it to a square ourselves - otherwise mixcloud get special
@@ -265,4 +265,4 @@ for timeslot in timeslots:
         myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
                             {'string_key': 'upload_state', 'value': info['result']['key']},
                             method="POST")
-    print(r.content)
+    print(r.json())
