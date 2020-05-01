@@ -10,6 +10,7 @@ import requests
 import sys
 import time
 
+resetQueue = True  #switches any queued timeslots back to requested on first pass.
 
 def write_demo_config(f):
     config = configparser.RawConfigParser()
@@ -64,19 +65,48 @@ def get_duration(duration):
     td = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
     return int(td.total_seconds())
 
-
-def loggerng_api_request(action, timeslot):
-    start_time = get_epoch(timeslot['start_time']+':00') + int(config.get("mixclouder", "news_length"))
+def checkCustomTimes(timeslot):
+    if timeslot['mixcloud_starttime'] == None:
+        start_time = get_epoch(timeslot['start_time']+':00') + int(config.get("mixclouder", "news_length"))
+    else:
+        start_time = get_epoch(timeslot['mixcloud_starttime']+':00')
     # Timeslots return start time relevant to local time at that point.
     # If it was in dst, subtract an hour
     if time.localtime(start_time).tm_isdst:
         start_time -= 3600
 
-    end_time = start_time + get_duration(timeslot['duration'])
+    # Calculate end of mixcloud recording
+    if timeslot['mixcloud_endtime'] != None:
+        # Custom End Time is defined
+
+        end_time = get_epoch(timeslot['mixcloud_endtime']+':00')
+        if time.localtime(end_time).tm_isdst:
+                end_time -= 3600
+
+    elif timeslot['mixcloud_starttime'] != None:
+        # No custom end time, so end time is the original scheduled start time + original duration
+
+        original_start_time = get_epoch(timeslot['start_time']+':00') + int(config.get("mixclouder", "news_length"))
+        if time.localtime(original_start_time).tm_isdst:
+                original_start_time -= 3600
+        end_time = original_start_time + get_duration(timeslot['duration'])
+
+    else:
+        # Non-custom start and end time, just use regular start time and duration from schedule
+        end_time = start_time + get_duration(timeslot['duration'])
+
+    duration = datetime.datetime.fromtimestamp(end_time - start_time).strftime('%H:%M:%S')
+    timeslot['start_time_epoch'] = start_time
+    timeslot['end_time_epoch'] = end_time
+    timeslot['duration'] = duration
+    return timeslot
+    
+
+def loggerng_api_request(action, timeslot):
     params = {
         'user': config.get("mixclouder", "loggerng_memberid"),
-        'start': start_time,
-        'end': end_time,
+        'start': timeslot['start_time_epoch'],
+        'end': timeslot['end_time_epoch'],
         'format': 'mp3',
         'title': timeslot['timeslot_id']
     }
@@ -135,6 +165,16 @@ while True:
     logging.info(ts['mixcloud_status'])
     if log_start + get_duration(ts['duration']) > time.time():
         break
+    if (ts['mixcloud_status'] == 'Queued') & resetQueue:
+    	myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+
+    # Check if we want to force upload this anyway.
+    if ts['mixcloud_status'] == 'Force Upload':
+        timeslots.append(ts)
+        myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/',
+                                {'string_key': 'upload_state', 'value': 'Queued'},
+                                method="POST")
+
     # Check if this show is opted in to logging and hasn't already been done
     if ts['mixcloud_status'] == 'Requested':
         # Was something other than jukebox on air at the time? (well, 2.5m in)
@@ -155,7 +195,7 @@ logging.info("Found %s shows pending upload.", len(timeslots))
 
 for timeslot in timeslots:
     # Skip ones that already have some kind of status, except queued
-    if timeslot['mixcloud_status'] != 'Requested':
+    if timeslot['mixcloud_status'] != 'Requested' and  timeslot['mixcloud_status'] != 'Force Upload':
         logging.info("Skipping %s as it does not need mixcloudifying.",
                      timeslot['timeslot_id'])
         continue
@@ -171,11 +211,14 @@ for timeslot in timeslots:
                             {'string_key': 'upload_state', 'value': 'Skipped - Incomplete Tracklist'},
                             method="POST")
         continue
+    timeslot = checkCustomTimes(timeslot)
+    print(timeslot)
 
     # Great, now let's make a request for the log file
     r = loggerng_api_request("make", timeslot)
     logging.info("Initiated log generation for timeslot %s",
                  timeslot['timeslot_id'])
+
     # Wait until we can download it
     r = loggerng_api_request("download", timeslot)
     while r.status_code == 403:
@@ -206,11 +249,12 @@ for timeslot in timeslots:
     # Now, for each song in the tracklist, we'll add the data to the tracklist
     # headers, and also increment the music_time
     for i in tracklist:
-        data['sections-' + str(sindex) + '-artist'] = i['artist']
-        data['sections-' + str(sindex) + '-song'] = i['title']
-        data['sections-' + str(sindex) + '-start_time'] = get_epoch(i['starttime']) - get_epoch(timeslot['start_time']+':00') - (int(config.get("mixclouder", "news_length")))
-        sindex += 1
-        music_time += get_duration(str(i['length'])) if i['length'] else 0
+        if (get_epoch(i['starttime']) - timeslot['start_time_epoch'] >= 0):
+            data['sections-' + str(sindex) + '-artist'] = i['artist']
+            data['sections-' + str(sindex) + '-song'] = i['title']
+            data['sections-' + str(sindex) + '-start_time'] = get_epoch(i['starttime']) - timeslot['start_time_epoch']
+            sindex += 1
+            music_time += get_duration(str(i['length'])) if i['length'] else 0
 
     # Work out that percentage of music I mentioned earlier
     data['percentage_music'] = int(music_time/duration*100)
@@ -248,13 +292,20 @@ for timeslot in timeslots:
     }
 
     logging.info("Starting upload of %s to Mixcloud", data['name'])
-
     r = requests.post('https://api.mixcloud.com/upload/?access_token='+config.get("mixclouder", "mixcloud_client_oauth"), data=data, files=files)
-    info = r.json()
-    if r.status_code != 200:
-        logging.error(info['error']['message'])
-        # Put the log back into the queue
+    try:
+    	info = r.json()
+    except:
+        logging.error("API response not JSON")
+        logging.error(r)
+	# Put the log back into the queue
         myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+        continue
+
+    if r.status_code != 200:
+        logging.error(info)
+        # Put the log back into the queue
+        #myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
         # Wait before carrying on if it's an API limit
         if 'retry_after' in info['error']:
             logging.error('Waiting %s seconds before continuing',
