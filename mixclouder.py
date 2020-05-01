@@ -137,9 +137,9 @@ while True:
         break
     # Check if this show is opted in to logging and hasn't already been done
     if ts['mixcloud_status'] == 'Requested':
-        # Was something other than jukebox on air at the time? (well, 2.5m in)
+        # Was something other than jukebox on air at the time? (well, 5m in)
         studio_on_air = myradio_api_request('Selector/getStudioAtTime/',
-                                            {'time': log_start+150})
+                                            {'time': log_start+300})
         if studio_on_air != 3:
             timeslots.append(ts)
             myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/',
