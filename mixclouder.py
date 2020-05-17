@@ -10,8 +10,6 @@ import requests
 import sys
 import time
 
-resetQueue = True  #switches any queued timeslots back to requested on first pass.
-
 def write_demo_config(f):
     config = configparser.RawConfigParser()
     config.add_section("mixclouder")
@@ -165,8 +163,8 @@ while True:
     logging.info(ts['mixcloud_status'])
     if log_start + get_duration(ts['duration']) > time.time():
         break
-    if (ts['mixcloud_status'] == 'Queued') & resetQueue:
-    	myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/', {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+    if ts['mixcloud_status'] == 'Queued':
+    	timeslots.append(ts)
 
     # Check if we want to force upload this anyway.
     if ts['mixcloud_status'] == 'Force Upload':
