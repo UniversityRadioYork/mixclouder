@@ -250,7 +250,7 @@ for timeslot in timeslots:
         if (get_epoch(i['starttime']) - timeslot['start_time_epoch'] >= 0):
             data['sections-' + str(sindex) + '-artist'] = i['artist']
             data['sections-' + str(sindex) + '-song'] = i['title']
-            data['sections-' + str(sindex) + '-start_time'] = get_epoch(i['starttime']) - timeslot['start_time_epoch']
+            data['sections-' + str(sindex) + '-start_time'] = i['time'] - timeslot['start_time_epoch']
             sindex += 1
             music_time += get_duration(str(i['length'])) if i['length'] else 0
 
