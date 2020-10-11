@@ -167,7 +167,7 @@ while True:
     	timeslots.append(ts)
 
     # Check if we want to force upload this anyway.
-    if ts['mixcloud_status'] == 'Force Upload':
+    if ts['mixcloud_status'] in ['Force Upload', 'Played Out']:
         timeslots.append(ts)
         myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/',
                                 {'string_key': 'upload_state', 'value': 'Queued'},
