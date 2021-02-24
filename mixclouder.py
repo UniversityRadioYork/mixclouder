@@ -195,7 +195,7 @@ logging.info("Found %s shows pending upload.", len(timeslots))
 
 for timeslot in timeslots:
     # Skip ones that already have some kind of status, except queued
-    if timeslot['mixcloud_status'] != 'Requested' and  timeslot['mixcloud_status'] != 'Force Upload':
+    if timeslot['mixcloud_status'] not in ['Requested', 'Force Upload', 'Played Out']:
         logging.info("Skipping %s as it does not need mixcloudifying.",
                      timeslot['timeslot_id'])
         continue
