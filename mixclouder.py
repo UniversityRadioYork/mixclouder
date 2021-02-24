@@ -102,7 +102,7 @@ def checkCustomTimes(timeslot):
 
 def loggerng_api_request(action, timeslot):
     title = timeslot['title']
-    title = "MixCloud: " + ((title[:20] + '..') if len(title) > 20 else title) + " - " + str(timeslot['timeslot_id'])
+    title = ((title[:20] + '..') if len(title) > 20 else title) + " - " + str(timeslot['start_time'])
     params = {
         'user': config.get("mixclouder", "loggerng_memberid"),
         'start': timeslot['start_time_epoch'],
