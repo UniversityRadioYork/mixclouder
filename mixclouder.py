@@ -98,15 +98,17 @@ def checkCustomTimes(timeslot):
     timeslot['end_time_epoch'] = end_time
     timeslot['duration'] = duration
     return timeslot
-    
+
 
 def loggerng_api_request(action, timeslot):
+    title = timeslot['title']
+    title = ((title[:20] + '..') if len(title) > 20 else title) + " - " + str(timeslot['start_time'])
     params = {
         'user': config.get("mixclouder", "loggerng_memberid"),
         'start': timeslot['start_time_epoch'],
         'end': timeslot['end_time_epoch'],
         'format': 'mp3',
-        'title': timeslot['timeslot_id']
+        'title': title
     }
     return requests.get(config.get("mixclouder", "loggerng_url") + action,
                         params=params)
@@ -193,7 +195,7 @@ logging.info("Found %s shows pending upload.", len(timeslots))
 
 for timeslot in timeslots:
     # Skip ones that already have some kind of status, except queued
-    if timeslot['mixcloud_status'] != 'Requested' and  timeslot['mixcloud_status'] != 'Force Upload':
+    if timeslot['mixcloud_status'] not in ['Requested', 'Force Upload', 'Played Out']:
         logging.info("Skipping %s as it does not need mixcloudifying.",
                      timeslot['timeslot_id'])
         continue
