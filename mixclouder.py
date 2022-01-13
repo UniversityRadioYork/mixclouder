@@ -347,6 +347,7 @@ if __name__ == "__main__":
     main()
 
     if t := os.getenv("RUN_MINUTES_PAST_HOUR"):
-        if datetime.datetime.now().minute == int(t):
-            main()
-        time.sleep(60)
+        while True:
+            if datetime.datetime.now().minute == int(t):
+                main()
+            time.sleep(60)
