@@ -115,8 +115,6 @@ def main():
     env = {}
 
     for _v in [
-        "MIXCLOUD_CLIENT_ID",
-        "MIXCLOUD_CLIENT_SECRET",
         "MIXCLOUD_CLIENT_OAUTH",
         "MYRADIO_API_KEY",
         "MYRADIO_URL",
@@ -124,7 +122,7 @@ def main():
         "LOGGERNG_URL",
         "LOGGERNG_MEMBERID",
         "LOGGERNG_LOGDIR",
-        "START_TIME",
+        "LOGGERNG_TIMEOUT_MINS",
         "NEWS_LENGTH"
     ]:
         if _e := os.getenv(_v):
@@ -219,7 +217,7 @@ def main():
 
         try:
             while r.status_code == 403:
-                if timeout >= 10:
+                if timeout >= 2 * int(env["LOGGERNG_TIMEOUT_MINS"]):
                     logging.warning("Log generation took too long, we skipped waiting")
                     myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
                         env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
