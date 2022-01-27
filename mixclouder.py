@@ -206,12 +206,18 @@ def main():
         timeslot = checkCustomTimes(timeslot, env["NEWS_LENGTH"])
 
         # Great, now let's make a request for the log file
-        r = loggerng_api_request("make", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
-        logging.info("Initiated log generation for timeslot %s",
-                    timeslot['timeslot_id'])
+        try:
+            r = loggerng_api_request("make", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
+            logging.info("Initiated log generation for timeslot %s",
+                        timeslot['timeslot_id'])
 
-        # Wait until we can download it
-        r = loggerng_api_request("download", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
+            # Wait until we can download it
+            r = loggerng_api_request("download", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
+        except ConnectionRefusedError:
+            logging.warning("Connection refused connecting to loggerng")
+            myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
+                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
 
         timeout = 0
 
