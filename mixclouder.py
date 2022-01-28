@@ -8,6 +8,7 @@ import requests
 import sys
 import time
 
+
 def myradio_api_request(url, key, base_url, payload=None, retry=True, method="GET"):
     if payload is None:
         payload = {}
@@ -44,6 +45,7 @@ def get_duration(duration):
     td = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
     return int(td.total_seconds())
 
+
 def checkCustomTimes(timeslot, news_length):
     if timeslot['mixcloud_starttime'] == None:
         start_time = get_epoch(timeslot['start_time']+':00') + int(news_length)
@@ -60,21 +62,23 @@ def checkCustomTimes(timeslot, news_length):
 
         end_time = get_epoch(timeslot['mixcloud_endtime']+':00')
         if time.localtime(end_time).tm_isdst:
-                end_time -= 3600
+            end_time -= 3600
 
     elif timeslot['mixcloud_starttime'] != None:
         # No custom end time, so end time is the original scheduled start time + original duration
 
-        original_start_time = get_epoch(timeslot['start_time']+':00') + int(news_length)
+        original_start_time = get_epoch(
+            timeslot['start_time']+':00') + int(news_length)
         if time.localtime(original_start_time).tm_isdst:
-                original_start_time -= 3600
+            original_start_time -= 3600
         end_time = original_start_time + get_duration(timeslot['duration'])
 
     else:
         # Non-custom start and end time, just use regular start time and duration from schedule
         end_time = start_time + get_duration(timeslot['duration'])
 
-    duration = datetime.datetime.fromtimestamp(end_time - start_time).strftime('%H:%M:%S')
+    duration = datetime.datetime.fromtimestamp(
+        end_time - start_time).strftime('%H:%M:%S')
     timeslot['start_time_epoch'] = start_time
     timeslot['end_time_epoch'] = end_time
     timeslot['duration'] = duration
@@ -83,7 +87,8 @@ def checkCustomTimes(timeslot, news_length):
 
 def loggerng_api_request(action, timeslot, member_id, loggerng_url):
     title = timeslot['title']
-    title = ((title[:20] + '..') if len(title) > 20 else title) + " - " + str(timeslot['start_time'])
+    title = ((title[:20] + '..') if len(title) > 20 else title) + \
+        " - " + str(timeslot['start_time'])
     params = {
         'user': member_id,
         'start': timeslot['start_time_epoch'],
@@ -104,8 +109,10 @@ def cleanse_description(id, desc):
     if len(desc) > 1000:
         desc = desc[:1000]
         # just log a warning so we can manually change if need be
-        logging.warn("Timeslot %s description was too long and was trimmed", id)
+        logging.warn(
+            "Timeslot %s description was too long and was trimmed", id)
     return desc
+
 
 def main():
 
@@ -130,33 +137,35 @@ def main():
 
     # TODO: Cross reference with mixcloud to ensure somehow isn't already there
     # Logs are available for the last 14 all of those.
-    log_start = int(time.mktime((datetime.datetime.now() + datetime.timedelta(-14)).timetuple()))
-    
+    log_start = int(time.mktime(
+        (datetime.datetime.now() + datetime.timedelta(-14)).timetuple()))
+
     if time.localtime(log_start).tm_isdst:
         log_start -= 3600
-    
+
     timeslots = []
-    
+
     while True:
         logging.info("Start request %s", log_start)
-        ts = myradio_api_request('Timeslot/getNextTimeslot/', env["MYRADIO_API_KEY"], env["MYRADIO_URL"], {'time': log_start})
-    
+        ts = myradio_api_request(
+            'Timeslot/getNextTimeslot/', env["MYRADIO_API_KEY"], env["MYRADIO_URL"], {'time': log_start})
+
         # ts returns None if there is no next timeslot (i.e. end of term).
         if ts is None:
             break
-    
+
         log_start = get_epoch(ts['start_time']+':01')
-    
+
         if time.localtime(log_start).tm_isdst:
             log_start -= 3600
-    
+
         logging.info("Updated Start request %s", log_start)
         logging.info(ts['start_time'])
         logging.info(ts['mixcloud_status'])
-    
+
         if log_start + get_duration(ts['duration']) > time.time():
             break
-    
+
         if ts['mixcloud_status'] == 'Queued':
             timeslots.append(ts)
 
@@ -164,10 +173,10 @@ def main():
         if ts['mixcloud_status'] in ['Force Upload', 'Played Out']:
             timeslots.append(ts)
             myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/',
-                                    env["MYRADIO_API_KEY"],
-                                    env["MYRADIO_URL"],
-                                    {'string_key': 'upload_state', 'value': 'Queued'},
-                                    method="POST")
+                                env["MYRADIO_API_KEY"],
+                                env["MYRADIO_URL"],
+                                {'string_key': 'upload_state', 'value': 'Queued'},
+                                method="POST")
 
         # Check if this show is opted in to logging and hasn't already been done
         if ts['mixcloud_status'] == 'Requested':
@@ -180,13 +189,15 @@ def main():
                 timeslots.append(ts)
                 myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/',
                                     env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                                    {'string_key': 'upload_state', 'value': 'Queued'},
+                                    {'string_key': 'upload_state',
+                                        'value': 'Queued'},
                                     method="POST")
             else:
                 logging.warn("Timeslot %s was not on air!", ts['timeslot_id'])
                 myradio_api_request('Timeslot/'+str(ts['timeslot_id'])+'/setMeta/',
                                     env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                                    {'string_key': 'upload_state', 'value': 'Skipped - Off Air'},
+                                    {'string_key': 'upload_state',
+                                        'value': 'Skipped - Off Air'},
                                     method="POST")
 
     logging.info("Found %s shows pending upload.", len(timeslots))
@@ -195,45 +206,49 @@ def main():
         # Skip ones that already have some kind of status, except queued
         if timeslot['mixcloud_status'] not in ['Requested', 'Force Upload', 'Played Out']:
             logging.info("Skipping %s as it does not need mixcloudifying.",
-                        timeslot['timeslot_id'])
+                         timeslot['timeslot_id'])
             continue
 
         tracklist = sorted(myradio_api_request('TracklistItem/getTracklistForTimeslot',
-                                            env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                                            {'timeslotid': timeslot['timeslot_id']}),
-                        key=lambda k: k['starttime'])
-    
+                                               env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                                               {'timeslotid': timeslot['timeslot_id']}),
+                           key=lambda k: k['starttime'])
+
         timeslot = checkCustomTimes(timeslot, env["NEWS_LENGTH"])
 
         # Great, now let's make a request for the log file
         try:
-            r = loggerng_api_request("make", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
+            r = loggerng_api_request(
+                "make", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
             logging.info("Initiated log generation for timeslot %s",
-                        timeslot['timeslot_id'])
+                         timeslot['timeslot_id'])
 
             # Wait until we can download it
-            r = loggerng_api_request("download", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
+            r = loggerng_api_request(
+                "download", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
         except ConnectionRefusedError:
             logging.warning("Connection refused connecting to loggerng")
             myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
-                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+                                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
 
         timeout = 0
 
         try:
             while r.status_code == 403:
                 if timeout >= 2 * int(env["LOGGERNG_TIMEOUT_MINS"]):
-                    logging.warning("Log generation took too long, we skipped waiting")
+                    logging.warning(
+                        "Log generation took too long, we skipped waiting")
                     myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
-                        env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                        {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+                                        env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                                        {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
                     raise TimeoutError
 
-
-                logging.info("Still waiting for log generation (%s)", r.status_code)
+                logging.info(
+                    "Still waiting for log generation (%s)", r.status_code)
                 time.sleep(30)
-                r = loggerng_api_request("download", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
+                r = loggerng_api_request(
+                    "download", timeslot, env["LOGGERNG_MEMBERID"], env["LOGGERNG_URL"])
                 timeout += 1
 
         except TimeoutError:
@@ -241,7 +256,7 @@ def main():
 
         r = r.json()
         audiofile = env["LOGGERNG_LOGDIR"] + '/' + r['filename_disk']
-        
+
         # Okay, time to build request data
         data = {
             "name": timeslot['title'] + ' ' + time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time'] + ':00'))),
@@ -267,9 +282,11 @@ def main():
             if (get_epoch(i['starttime']) - timeslot['start_time_epoch'] >= 0):
                 data['sections-' + str(sindex) + '-artist'] = i['artist']
                 data['sections-' + str(sindex) + '-song'] = i['title']
-                data['sections-' + str(sindex) + '-start_time'] = i['time'] - timeslot['start_time_epoch']
+                data['sections-' + str(sindex) + '-start_time'] = i['time'] - \
+                    timeslot['start_time_epoch']
                 sindex += 1
-                music_time += get_duration(str(i['length'])) if i['length'] else 0
+                music_time += get_duration(str(i['length'])
+                                           ) if i['length'] else 0
 
         # Work out that percentage of music I mentioned earlier
         data['percentage_music'] = int(music_time/duration*100)
@@ -285,7 +302,7 @@ def main():
 
         # If the image has an alpha channel, convert it to white
         # Otherwise we'll get weird pixels
-        background = Image.new('RGBA', im.size, (255,255,255))
+        background = Image.new('RGBA', im.size, (255, 255, 255))
         im = Image.alpha_composite(background, im)
 
         # Convert it to a square ourselves - otherwise mixcloud get special
@@ -307,14 +324,15 @@ def main():
         }
 
         logging.info("Starting upload of %s to Mixcloud", data['name'])
-        
+
         try:
-            r = requests.post('https://api.mixcloud.com/upload/?access_token='+ env["MIXCLOUD_CLIENT_OAUTH"], data=data, files=files)
+            r = requests.post('https://api.mixcloud.com/upload/?access_token=' +
+                              env["MIXCLOUD_CLIENT_OAUTH"], data=data, files=files)
         except:
             logging.error("Failed to upload to Mixcloud")
-            myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/', 
-                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+            myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
+                                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
 
         try:
             info = r.json()
@@ -322,9 +340,9 @@ def main():
             logging.error("API response not JSON")
             logging.error(r)
         # Put the log back into the queue
-            myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/', 
-                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+            myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
+                                env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                                {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
             continue
 
         if r.status_code != 200:
@@ -332,20 +350,22 @@ def main():
             # Wait before carrying on if it's an API limit
             if 'retry_after' in info['error']:
                 logging.error('Waiting %s seconds before continuing',
-                            info['error']['retry_after'])
+                              info['error']['retry_after'])
                 time.sleep(info['error']['retry_after'])
             else:
                 # Put the log back into the queue
                 myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
-                    env["MYRADIO_API_KEY"], env["MYRADIO_URL"], 
-                    {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
+                                    env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
+                                    {'string_key': 'upload_state', 'value': 'Requested'}, method="POST")
 
         else:
             logging.info('Upload successful!')
             myradio_api_request('Timeslot/'+str(timeslot['timeslot_id'])+'/setMeta/',
                                 env["MYRADIO_API_KEY"], env["MYRADIO_URL"],
-                                {'string_key': 'upload_state', 'value': info['result']['key']},
+                                {'string_key': 'upload_state',
+                                    'value': info['result']['key']},
                                 method="POST")
+
 
 if __name__ == "__main__":
     main()
