@@ -121,11 +121,15 @@ def main():
 
     env = {}
 
+    # Default microsite domain if not set:
+    env["MICROSITE_DOMAIN"] = "https://ury.org.uk"
+
     for _v in [
         "MIXCLOUD_CLIENT_OAUTH",
         "MYRADIO_API_KEY",
         "MYRADIO_URL",
         "MYRADIO_IMAGE_DOMAIN",
+        "MICROSITE_DOMAIN"
         "LOGGERNG_URL",
         "LOGGERNG_MEMBERID",
         "LOGGERNG_LOGDIR",
@@ -256,11 +260,17 @@ def main():
 
         r = r.json()
         audiofile = env["LOGGERNG_LOGDIR"] + '/' + r['filename_disk']
-
+        # Make a description with a handy link to the website!
+        description = ""
+        if "season" in timeslot and isinstance(str, timeslot["season"]["micrositelink"]["url"]):
+            url=timeslot["season"]["micrositelink"]["url"]
+            if len(url) > 2 and url.startsWith("/"):
+                description = f"Checkout full show info, tracklist and other episodes at {env["MICROSITE_DOMAIN"]}{url}<br><br>"
+        description += timeslot['description']
         # Okay, time to build request data
         data = {
             "name": timeslot['title'] + ' ' + time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time'] + ':00'))),
-            "description": cleanse_description(timeslot['timeslot_id'], timeslot['description']),
+            "description": cleanse_description(timeslot['timeslot_id'],description),
             'sections-0-start_time': 0,
             'sections-0-chapter': 'Top of Hour'
         }
