@@ -262,7 +262,7 @@ def main():
             "name": timeslot['title'] + ' ' + time.strftime('%d/%m/%Y', time.localtime(get_epoch(timeslot['start_time'] + ':00'))),
             "description": cleanse_description(timeslot['timeslot_id'], timeslot['description']),
             'sections-0-start_time': 0,
-            'sections-0-chapter': 'Top of Hour'
+            'sections-0-chapter': 'Welcome to the show!'
         }
 
         # Add the tags, if they are a thing
