@@ -130,15 +130,16 @@ def main():
         "LOGGERNG_MEMBERID",
         "LOGGERNG_LOGDIR",
         "LOGGERNG_TIMEOUT_MINS",
-        "NEWS_LENGTH"
+        "NEWS_LENGTH",
+        "LOOKBACK_DAYS",
     ]:
         if _e := os.getenv(_v):
             env[_v] = _e
 
     # TODO: Cross reference with mixcloud to ensure somehow isn't already there
-    # Logs are available for the last 14 all of those.
+    lookback_days = int(env.get("LOOKBACK_DAYS", 42)) # we should legally have 42 days of logging
     log_start = int(time.mktime(
-        (datetime.datetime.now() + datetime.timedelta(-14)).timetuple()))
+        (datetime.datetime.now() + datetime.timedelta(days=-lookback_days)).timetuple()))
 
     if time.localtime(log_start).tm_isdst:
         log_start -= 3600
